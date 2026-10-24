@@ -1,0 +1,309 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mindful Tiles</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px 14px;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      color: #302c46;
+      background: linear-gradient(135deg, #f7edff, #e5f8f4);
+      text-align: center;
+    }
+
+    .game {
+      width: 100%;
+      max-width: 430px;
+      margin: 20px auto;
+      padding: 24px 16px;
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 12px 35px #47356818;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+      color: #7252a5;
+    }
+
+    .subtitle {
+      color: #716b80;
+      line-height: 1.5;
+    }
+
+    .stats {
+      display: flex;
+      justify-content: space-around;
+      margin: 22px 0;
+      gap: 10px;
+    }
+
+    .stat {
+      padding: 10px;
+      background: #f4effc;
+      border-radius: 12px;
+      flex: 1;
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 22px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 7px;
+      width: 100%;
+      aspect-ratio: 1;
+      padding: 8px;
+      background: #e9e1f5;
+      border-radius: 16px;
+    }
+
+    .tile {
+      min-width: 0;
+      border: 0;
+      border-radius: 10px;
+      background: #b9a2e7;
+      color: #302447;
+      font-size: clamp(20px, 7vw, 30px);
+      font-weight: bold;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .tile:focus-visible, .controls button:focus-visible {
+      outline: 3px solid #493078;
+      outline-offset: 2px;
+    }
+
+    .tile:hover {
+      background: #d0c0f1;
+    }
+
+    .tile.empty {
+      background: #f8f6fb;
+      cursor: default;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .controls button {
+      flex: 1;
+      min-height: 46px;
+      border: 0;
+      border-radius: 12px;
+      background: #7252a5;
+      color: white;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #message {
+      min-height: 28px;
+      margin-top: 18px;
+      font-weight: bold;
+      color: #267653;
+    }
+
+    @media (max-width: 360px) {
+      .game {
+        padding: 18px 10px;
+      }
+      .board {
+        gap: 5px;
+        padding: 6px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="game">
+    <h1>Mindful Tiles 🧩</h1>
+    <p class="subtitle">
+      Put the numbers in order from 1 to 15.
+      Tap a tile next to the empty space to move it.
+    </p>
+
+    <div class="stats">
+      <div class="stat">
+        Moves
+        <strong id="moves">0</strong>
+      </div>
+      <div class="stat">
+        Best
+        <strong id="best">—</strong>
+      </div>
+    </div>
+
+    <div class="board" id="board" aria-label="Number puzzle"></div>
+
+    <div class="controls">
+      <button id="shuffle">Shuffle</button>
+      <button id="restart">Restart</button>
+    </div>
+
+    <p id="message" role="status" aria-live="polite">
+      Ready to play?
+    </p>
+  </main>
+
+  <script>
+    const board = document.getElementById("board");
+    const movesDisplay = document.getElementById("moves");
+    const bestDisplay = document.getElementById("best");
+    const message = document.getElementById("message");
+
+    let tiles = [];
+    let moves = 0;
+    let won = false;
+    let best = null;
+
+    function isSolved() {
+      return tiles.every((value, index) =>
+        value === (index === 15 ? 0 : index + 1)
+      );
+    }
+
+    function drawBoard() {
+      board.innerHTML = "";
+
+      tiles.forEach((number, index) => {
+        const tile = document.createElement("button");
+        tile.className = "tile" + (number === 0 ? " empty" : "");
+        tile.textContent = number === 0 ? "" : number;
+        tile.setAttribute(
+          "aria-label",
+          number === 0 ? "Empty space" : "Tile " + number
+        );
+
+        if (number === 0) {
+          tile.disabled = true;
+          tile.setAttribute("aria-label", "Empty space");
+        } else {
+          tile.addEventListener("click", () => moveTile(index));
+        }
+
+        board.appendChild(tile);
+      });
+
+      movesDisplay.textContent = moves;
+      bestDisplay.textContent = best === null ? "—" : best;
+    }
+
+    function moveTile(index) {
+      if (won) return;
+
+      const empty = tiles.indexOf(0);
+      const sameRow = Math.floor(index / 4) === Math.floor(empty / 4);
+      const sameCol = index % 4 === empty % 4;
+      const adjacent =
+        (sameRow && Math.abs(index - empty) === 1) ||
+        (sameCol && Math.abs(index - empty) === 4);
+
+      if (!adjacent) return;
+
+      [tiles[index], tiles[empty]] =
+        [tiles[empty], tiles[index]];
+
+      moves++;
+
+      if (isSolved()) {
+        won = true;
+
+        if (best === null || moves < best) {
+          best = moves;
+        }
+
+        message.textContent =
+          "🎉 You solved it in " + moves + " moves!";
+      } else {
+        message.textContent = "Keep going! You can do it.";
+      }
+
+      drawBoard();
+    }
+
+    function shuffleBoard() {
+      tiles = Array.from({ length: 16 }, (_, i) =>
+        i === 15 ? 0 : i + 1
+      );
+
+      let previousEmpty = -1;
+
+      // Shuffle using legal moves so the puzzle is solvable.
+      for (let i = 0; i < 250; i++) {
+        const empty = tiles.indexOf(0);
+        const row = Math.floor(empty / 4);
+        const col = empty % 4;
+        const candidates = [];
+
+        if (row > 0) candidates.push(empty - 4);
+        if (row < 3) candidates.push(empty + 4);
+        if (col > 0) candidates.push(empty - 1);
+        if (col < 3) candidates.push(empty + 1);
+
+        const choices = candidates.filter(
+          position => position !== previousEmpty
+        );
+
+        const next = choices[
+          Math.floor(Math.random() * choices.length)
+        ];
+
+        [tiles[empty], tiles[next]] =
+          [tiles[next], tiles[empty]];
+
+        previousEmpty = empty;
+      }
+
+      if (isSolved()) {
+        shuffleBoard();
+        return;
+      }
+
+      moves = 0;
+      won = false;
+      message.textContent = "Puzzle shuffled. Good luck!";
+      drawBoard();
+    }
+
+    document.getElementById("shuffle").addEventListener(
+      "click", shuffleBoard
+    );
+
+    document.getElementById("restart").addEventListener(
+      "click", () => {
+        moves = 0;
+        won = false;
+        tiles = Array.from({ length: 16 }, (_, i) =>
+          i === 15 ? 0 : i + 1
+        );
+        message.textContent =
+          "Board reset. Tap Shuffle to start a game.";
+        drawBoard();
+      }
+    );
+
+    shuffleBoard();
+  </script>
+</body>
+</html>
